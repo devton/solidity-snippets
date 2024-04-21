@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-// import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol" as TH;
+import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 // import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,64 +12,6 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 // import "@openzeppelin/contracts@5.0.2/interfaces/IERC4626.sol";
 // import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-
-
-
-library TransferHelper {
-    /// @notice Transfers tokens from the targeted address to the given destination
-    /// @notice Errors with 'STF' if transfer fails
-    /// @param token The contract address of the token to be transferred
-    /// @param from The originating address from which the tokens will be transferred
-    /// @param to The destination address of the transfer
-    /// @param value The amount to be transferred
-    function safeTransferFrom(
-        address token,
-        address from,
-        address to,
-        uint256 value
-    ) internal {
-        (bool success, bytes memory data) =
-            token.call(abi.encodeWithSelector(IERC20.transferFrom.selector, from, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), 'STF');
-    }
-
-    /// @notice Transfers tokens from msg.sender to a recipient
-    /// @dev Errors with ST if transfer fails
-    /// @param token The contract address of the token which will be transferred
-    /// @param to The recipient of the transfer
-    /// @param value The value of the transfer
-    function safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) internal {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.transfer.selector, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), 'ST');
-    }
-
-    /// @notice Approves the stipulated contract to spend the given allowance in the given token
-    /// @dev Errors with 'SA' if transfer fails
-    /// @param token The contract address of the token to be approved
-    /// @param to The target of the approval
-    /// @param value The amount of the given token the target will be allowed to spend
-    function safeApprove(
-        address token,
-        address to,
-        uint256 value
-    ) internal {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(IERC20.approve.selector, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), 'SA');
-    }
-
-    /// @notice Transfers ETH to the recipient address
-    /// @dev Fails with `STE`
-    /// @param to The destination of the transfer
-    /// @param value The value to be transferred
-    function safeTransferETH(address to, uint256 value) internal {
-        (bool success, ) = to.call{value: value}(new bytes(0));
-        require(success, 'STE');
-    }
-}
 
 
 interface INonfungiblePositionManager {
@@ -116,7 +58,7 @@ contract FeeCollectorV3PositionTimeLockV1 is IERC721Receiver, Ownable, Reentranc
     }
 
     // mapping(address => mapping(address => uint256)) public userLockedPositionsTokenId;
-    mapping(address => mapping(bytes32 => LockedPosition)) public lockedPositions;
+    mapping(address => mapping(bytes32 => LockedPosition)) private lockedPositions;
 
     // INonfungiblePositionManager public positionManager;
 
@@ -127,15 +69,28 @@ contract FeeCollectorV3PositionTimeLockV1 is IERC721Receiver, Ownable, Reentranc
     event PositionUnlocked(address indexed user, address indexed positionManager, uint256 tokenId);
 
     function onERC721Received(
-        address _operator,
-        address _from,
-        uint256 _tokenId,
-        bytes calldata _data) external pure override returns (bytes4) {
+        address,
+        address,
+        uint256,
+        bytes calldata) external pure override returns (bytes4) {
         // require(address(whitelistedNftContract) == _msgSender());
         // _stakeNft(tokenId, from);
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    function getPositionWithKey(address _from, bytes32 _key) external returns (memory LockedPosition) {
+        LockedPosition memory lockedPosition = lockedPositions[_from][_key];
+        return lockedPosition;
+    }
+
+    function getPositionWithAddress(address _from, address _positionManager, uint256 tokenId) external view returns(memory LockedPosition) {
+        bytes32 _key = keyForPosition(_from, _positionManager, tokenId);
+        return getPositionWithKey(_from, _key);
+    }
+
+    function keyForPosition(address _from, address _positionManger, uint256 tokenId) external view returns(bytes32) {
+        return keccak256(abi.encodePacked(_from, _positionManager, tokenId));
+    }
 
     function _hashLockedPositionKey(address _positionManager, uint256 tokenId) private view returns(bytes32) {
         return keccak256(abi.encodePacked(_msgSender(), _positionManager, tokenId));
