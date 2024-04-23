@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@axelar-network/axelar-gmp-sdk-solidity": "^5.8.0",
     "@openzeppelin/contracts": "^5.0.2",
     "@uniswap/v3-periphery": "^1.4.4"
   }

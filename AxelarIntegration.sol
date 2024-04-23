@@ -22,7 +22,7 @@ contract AxelarIntegration is Ownable, ReentrancyGuard {
         axlUSDC = IERC20(_axlUSDCAddress);
     }
 
-    function sendTokensToAnotherChain(string calldata destChain, string calldata destination, string memory symbol, uint256 amount) public nonReentrant onlyOwner {
+    function sendTokensToAnotherChain(string memory destChain, string memory destination, string memory symbol, uint256 amount) public nonReentrant onlyOwner {
         uint256 balance = axlUSDC.balanceOf(address(this));
         require(balance >= amount, "amount > balance");
         require(keccak256(bytes(symbol)) == keccak256(bytes("axlUSDC")), "only axlUSDC enabled");
